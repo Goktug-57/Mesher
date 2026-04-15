@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <title>Precision Mosaic Matcher</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
+        .section { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .grid-inputs { display: flex; gap: 20px; margin-bottom: 10px; }
+        #output-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        #output-table th, #output-table td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        .color-preview { width: 30px; height: 30px; border: 1px solid #000; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Precision Mosaic Color Counter</h2>
+    
+    <div class="section">
+        <div class="grid-inputs">
+            <div>
+                <label>Cols:</label>
+                <input type="number" id="cols" value="50" style="width: 60px;">
+            </div>
+            <div>
+                <label>Rows:</label>
+                <input type="number" id="rows" value="50" style="width: 60px;">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <label><strong>Step 1:</strong> Upload your 16 Source Color JPGs:</label><br>
+        <input type="file" id="palette-files" accept="image/*" multiple>
+    </div>
+
+    <div class="section">
+        <label><strong>Step 2:</strong> Upload your Mosaic Output Image:</label><br>
+        <input type="file" id="mosaic-file" accept="image/*">
+    </div>
+
+    <div class="section">
+        <button id="run-btn" py-click="process_mosaic">Match & Count Tiles</button>
+    </div>
+
+    <div id="status" style="margin-top: 10px; color: #666;">Ready.</div>
+    <div id="output"></div>
+</div>
+
+<py-config>
+    packages = ["Pillow"]
+</py-config>
+
+<script type="py">
+from PIL import Image
+import io
+from pyscript import document, display
+from collections import Counter
+import math
+
+def get_avg_color(img_bytes):
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    # Resize to 1x1 to get the mathematical average color
+    img = img.resize((1, 1))
+    return img.getpixel((0, 0))
+
+async def process_mosaic(event):
+    status = document.querySelector("#status")
+    output_div = document.querySelector("#output")
+    
+    palette_input = document.querySelector("#palette-files")
+    mosaic_input = document.querySelector("#mosaic-file")
+    
+    if not palette_input.files or not mosaic_input.files:
+        status.innerHTML = "❌ Please upload both the palette JPGs and the mosaic image."
+        return
+
+    status.innerHTML = "⏳ Analyzing palette and mosaic..."
+    
+    try:
+        # 1. Process Palette
+        reference_palette = {} # Stores { (R,G,B): "Filename" }
+        for i in range(len(palette_input.files)):
+            f = palette_input.files.item(i)
+            f_bytes = (await f.arrayBuffer()).to_bytes()
+            avg = get_avg_color(f_bytes)
+            reference_palette[avg] = f.name
+
+        # 2. Process Mosaic
+        m_file = mosaic_input.files.item(0)
+        m_bytes = (await m_file.arrayBuffer()).to_bytes()
+        mosaic_img = Image.open(io.BytesIO(m_bytes)).convert("RGB")
+        
+        cols = int(document.querySelector("#cols").value)
+        rows = int(document.querySelector("#rows").value)
+        w, h = mosaic_img.size
+        cw, ch = w/cols, h/rows
+
+        counts = Counter()
+
+        for r in range(rows):
+            for c in range(cols):
+                # Sample center
+                sx = int((c * cw) + (cw / 2))
+                sy = int((r * ch) + (ch / 2))
+                pixel = mosaic_img.getpixel((sx, sy))
+
+                # Find closest color in our reference palette
+                closest = min(reference_palette.keys(), 
+                             key=lambda pc: math.sqrt(sum((a-b)**2 for a,b in zip(pixel, pc))))
+                counts[closest] += 1
+
+        # 3. Render Results
+        html = "<h3>Tile Count Results</h3><table id='output-table'><tr><th>Tile Color</th><th>Source File</th><th>Count</th></tr>"
+        for color, count in counts.items():
+            hex_c = '#%02x%02x%02x' % color
+            filename = reference_palette[color]
+            html += f"<tr><td><div class='color-preview' style='background:{hex_c}'></div></td><td>{filename}</td><td><strong>{count}</strong></td></tr>"
+        html += "</table>"
+        
+        output_div.innerHTML = html
+        status.innerHTML = "✅ Done!"
+
+    except Exception as e:
+        status.innerHTML = f"❌ Error: {str(e)}"
+
+document.querySelector("#status").innerHTML = "✅ PyScript Loaded. Ready to work."
+</script>
+
+</body>
+</html>
