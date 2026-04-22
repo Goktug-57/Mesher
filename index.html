@@ -3,471 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesher</title>
-    
-    <link rel="stylesheet" href="https://pyscript.net/releases/2023.05.1/pyscript.css" />
-    <script defer src="https://pyscript.net/releases/2023.05.1/pyscript.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #e0e5ec; color: #333; position: relative; }
-        .container { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; }
-        .controls { background: white; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
-        .preview-area { background: white; padding: 25px; border-radius: 12px; flex-grow: 1; min-height: 80vh; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        
-        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; letter-spacing: 1px; font-weight: 800; text-transform: uppercase; }
-        h3 { margin: 0 0 10px 0; color: #34495e; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
-        
-        label { display: block; font-weight: 600; font-size: 0.9em; color: #555; margin-bottom: 4px; }
-        input[type="number"], input[type="file"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        input[type="color"] { width: 100%; height: 40px; border: none; cursor: pointer; }
-        
-        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
-        
-        #preview-btn { background: #3498db; color: white; }
-        #preview-btn:hover { background: #2980b9; }
-        
-        #pdf-bw-btn { background: #95a5a6; color: white; }
-        #pdf-bw-btn:hover { background: #7f8c8d; }
-        
-        #pdf-color-btn { background: #e67e22; color: white; }
-        #pdf-color-btn:hover { background: #d35400; }
-        
-        #canvas-container { text-align: center; overflow: auto; max-height: 600px; border: 1px dashed #ccc; padding: 10px; }
-        .stats-box { font-size: 0.9em; background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 4px solid #3498db; }
-        .color-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eee; }
-        .chip { width: 20px; height: 20px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.2); display: inline-block; }
-
-        .lang-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 5px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            color: #555;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .lang-btn:hover { background: #f0f0f0; }
-    </style>
+    <title>Mosaic Maker Workbench</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <py-config>
-        packages = ["Pillow", "numpy", "fpdf2"]
-    </py-config>
+<div id="app-container">
+    <nav id="sidebar">
+        <div class="sidebar-item active">Mosaic Maker</div>
+        <div class="sidebar-item">GCode Extractor</div>
+        <div class="sidebar-item">PLC Monitor</div>
+    </nav>
 
-    <button id="lang-switch" class="lang-btn">TR / EN</button>
-
-    <h1 id="app-title">Mesher</h1>
-    
-    <div class="container">
-        <div class="controls">
-            <h3 id="lbl-specs">Specs</h3>
-            
-            <label id="lbl-image">Image</label>
-            <input type="file" id="file-upload">
-            
-            <label id="lbl-dims">Dimensions (cm)</label>
-            <div style="display:flex; gap:10px;">
-                <input type="number" id="wall-width" value="150" placeholder="Width">
-                <input type="number" id="wall-height" value="300" placeholder="Height">
-            </div>
-            
-            <label id="lbl-tile">Tile Size (mm)</label>
-            <input type="number" id="tile-size" value="10">
-            
-            <label id="lbl-colors">Colors (Palette Size)</label>
-            <input type="number" id="palette-count" value="16" min="2" max="255">
-
-            <label id="lbl-grid">Grid Color</label>
-            <input type="color" id="grid-color" value="#ff0000">
-
-            <div class="btn-group">
-                <button id="preview-btn">1. Generate Preview</button>
-                <hr style="width:100%; border:0; border-top:1px solid #eee;">
-                <button id="pdf-bw-btn">2A. Download B&W Blueprint</button>
-                <button id="pdf-color-btn">2B. Download Visual Guide</button>
-            </div>
-            
-            <div id="loading-msg" style="display:none; text-align:center; color:#e67e22; font-weight:bold; margin-top:10px;">Processing...</div>
+    <main id="workspace">
+        <div class="tabs">
+            <button class="tab-btn active" data-target="tab-source">1. Source</button>
+            <button class="tab-btn" data-target="tab-grid">2. Grid Config</button>
+            <button class="tab-btn" data-target="tab-border">3. Borders</button>
         </div>
 
-        <div class="preview-area">
-            <h3 id="lbl-visual">Visual & Data</h3>
-            <div id="stats-output" style="margin-bottom: 20px;">Upload an image to start.</div>
-            <div id="canvas-container"></div>
+        <div class="tab-content active" id="tab-source">
+            <fieldset>
+                <legend>Master Image</legend>
+                <input type="file" id="input-image" accept="image/png, image/jpeg">
+                <div class="status-box" id="img-status">No image loaded.</div>
+            </fieldset>
+            <fieldset>
+                <legend>Tile Palette (Optional)</legend>
+                <input type="file" id="input-palette" accept="image/png, image/jpeg" multiple>
+                <div class="status-box">Load 10x10 base colors.</div>
+            </fieldset>
         </div>
-    </div>
 
-    <py-script>
-        import asyncio
-        from js import document, console, Uint8Array, window, Blob, URL
-        from pyodide.ffi import create_proxy
-        import io
-        import math
-        from PIL import Image, ImageDraw
-        from fpdf import FPDF
-
-        STANDARD_GAP_MM = 1.0 
-        MESH_PLATE_SIZE_MM = 300.0 
-        CURRENT_LANG = "EN"
-
-        TEXTS = {
-            "EN": {
-                "specs": "Specs",
-                "image": "Image",
-                "dims": "Dimensions (cm)",
-                "tile": "Tile Size (mm)",
-                "colors": "Colors (Palette Size)",
-                "grid": "Grid Color",
-                "visual": "Visual & Data",
-                "btn_prev": "1. Generate Preview",
-                "btn_bw": "2A. Download B&W Blueprint",
-                "btn_col": "2B. Download Visual Guide",
-                "msg_upload": "Upload an image to start.",
-                "msg_proc": "Processing...",
-                "err_img": "Please upload an image.",
-                "err_prev": "Please generate a preview first.",
-                "gen_pdf": "Generating PDF...",
+        <div class="tab-content" id="tab-grid">
+            <fieldset>
+                <legend>Resolution</legend>
+                <label>Cell Count X:</label>
+                <input type="number" id="cell-count-x" placeholder="e.g., 60">
                 
-                "stat_tiles": "Total Tiles",
-                "stat_layout": "Sheet Layout",
-                "stat_sheets": "Total Sheets",
+                <label>Cell Count Y (Auto-calculated):</label>
+                <input type="number" id="cell-count-y" disabled>
                 
-                "pdf_sheet": "Sheet",
-                "pdf_row": "Row",
-                "pdf_col": "Col",
-                "pdf_assembly": "Assembly Guide",
-                "pdf_master": "Project Master Plan"
-            },
-            "TR": {
-                "specs": "Özellikler",
-                "image": "Görsel",
-                "dims": "Boyutlar (cm)",
-                "tile": "Karo Boyutu (mm)",
-                "colors": "Renk Sayısı",
-                "grid": "Izgara Rengi",
-                "visual": "Görsel & Veri",
-                "btn_prev": "1. Önizleme Oluştur",
-                "btn_bw": "2A. S/B Şema İndir",
-                "btn_col": "2B. Görsel Rehber İndir",
-                "msg_upload": "Başlamak için görsel yükleyin.",
-                "msg_proc": "İşleniyor...",
-                "err_img": "Lütfen bir görsel yükleyin.",
-                "err_prev": "Lütfen önce önizleme oluşturun.",
-                "gen_pdf": "PDF Oluşturuluyor...",
+                <label>Cell Width (px):</label>
+                <input type="number" id="cell-width" value="25">
+            </fieldset>
+        </div>
+
+        <div class="tab-content" id="tab-border">
+            <fieldset>
+                <legend>Grid Lines</legend>
+                <label><input type="checkbox" id="enable-border"> Enable Borders</label>
                 
-                "stat_tiles": "Toplam Karo",
-                "stat_layout": "Pafta Düzeni",
-                "stat_sheets": "Toplam Pafta",
+                <label>Thickness (px):</label>
+                <input type="number" id="border-thickness" value="1" min="1">
                 
-                "pdf_sheet": "Pafta",
-                "pdf_row": "Satir",
-                "pdf_col": "Sutun",
-                "pdf_assembly": "Montaj Rehberi",
-                "pdf_master": "Proje Ana Plani"
-            }
-        }
+                <label>Color:</label>
+                <input type="color" id="border-color" value="#000000">
+            </fieldset>
+        </div>
 
-        global_data = {
-            "processed": False,
-            "img_obj": None,
-            "number_map": [],
-            "palette": [],
-            "tiles_x": 0,
-            "tiles_y": 0,
-            "mesh_tile_count": 0,
-            "meshes_x": 0,
-            "meshes_y": 0
-        }
+        <div id="output-container">
+            <canvas id="render-canvas"></canvas>
+        </div>
 
-        def get_text(key):
-            return TEXTS[CURRENT_LANG][key]
+        <div id="action-bar">
+            <button id="btn-generate">Generate & Save PNG</button>
+            <span id="warning-msg"></span>
+        </div>
+    </main>
+</div>
 
-        def toggle_language(event):
-            global CURRENT_LANG
-            CURRENT_LANG = "TR" if CURRENT_LANG == "EN" else "EN"
-            
-            t = TEXTS[CURRENT_LANG]
-            
-            document.getElementById("lbl-specs").innerText = t["specs"]
-            document.getElementById("lbl-image").innerText = t["image"]
-            document.getElementById("lbl-dims").innerText = t["dims"]
-            document.getElementById("lbl-tile").innerText = t["tile"]
-            document.getElementById("lbl-colors").innerText = t["colors"]
-            document.getElementById("lbl-grid").innerText = t["grid"]
-            document.getElementById("lbl-visual").innerText = t["visual"]
-            document.getElementById("preview-btn").innerText = t["btn_prev"]
-            document.getElementById("pdf-bw-btn").innerText = t["btn_bw"]
-            document.getElementById("pdf-color-btn").innerText = t["btn_col"]
-            
-            if not global_data["processed"]:
-                document.getElementById("stats-output").innerText = t["msg_upload"]
-
-        def get_grid_color_rgb():
-            hex_col = document.getElementById("grid-color").value.lstrip('#')
-            return tuple(int(hex_col[i:i+2], 16) for i in (0, 2, 4))
-
-        async def process_preview(event):
-            try:
-                document.getElementById("loading-msg").innerText = get_text("msg_proc")
-                document.getElementById("loading-msg").style.display = "block"
-                await asyncio.sleep(0.1)
-
-                file_input = document.getElementById("file-upload")
-                if not file_input.files.length:
-                    window.alert(get_text("err_img"))
-                    document.getElementById("loading-msg").style.display = "none"
-                    return
-
-                wall_w = float(document.getElementById("wall-width").value) * 10
-                wall_h = float(document.getElementById("wall-height").value) * 10
-                tile_mm = float(document.getElementById("tile-size").value)
-                palette_c = int(document.getElementById("palette-count").value)
-
-                t_mesh = int((MESH_PLATE_SIZE_MM - STANDARD_GAP_MM) / (tile_mm + STANDARD_GAP_MM))
-                t_x = int((wall_w - STANDARD_GAP_MM) / (tile_mm + STANDARD_GAP_MM))
-                t_y = int((wall_h - STANDARD_GAP_MM) / (tile_mm + STANDARD_GAP_MM))
-                m_x = math.ceil(t_x / t_mesh)
-                m_y = math.ceil(t_y / t_mesh)
-
-                file = file_input.files.item(0)
-                array_buffer = await file.arrayBuffer()
-                data = Uint8Array.new(array_buffer)
-                bytes_io = io.BytesIO(bytearray(data))
-                
-                img = Image.open(bytes_io).convert("RGB")
-                img_small = img.resize((t_x, t_y), Image.Resampling.NEAREST)
-                img_quant = img_small.quantize(colors=palette_c, method=1, dither=0)
-                
-                width, height = img_quant.size
-                pixels = img_quant.load()
-                palette_flat = img_quant.getpalette()
-                
-                number_map = []
-                color_counts = {}
-
-                for y in range(height):
-                    row = []
-                    for x in range(width):
-                        idx = pixels[x, y]
-                        row.append(idx)
-                        color_counts[idx] = color_counts.get(idx, 0) + 1
-                    number_map.append(row)
-
-                global_data.update({
-                    "processed": True,
-                    "img_obj": img_quant.convert("RGB"), 
-                    "number_map": number_map,
-                    "palette": palette_flat,
-                    "tiles_x": t_x,
-                    "tiles_y": t_y,
-                    "mesh_tile_count": t_mesh,
-                    "meshes_x": m_x,
-                    "meshes_y": m_y
-                })
-
-                scale = 6 if t_x > 200 else 10
-                preview_w, preview_h = width * scale, height * scale
-                preview_img = global_data["img_obj"].resize((preview_w, preview_h), Image.Resampling.NEAREST)
-                
-                draw = ImageDraw.Draw(preview_img)
-                grid_rgb = get_grid_color_rgb()
-                mesh_px = t_mesh * scale
-                
-                for x in range(0, preview_w + 1, mesh_px):
-                    draw.line([(x, 0), (x, preview_h)], fill=grid_rgb, width=3)
-                for y in range(0, preview_h + 1, mesh_px):
-                    draw.line([(0, y), (preview_w, y)], fill=grid_rgb, width=3)
-
-                document.getElementById("canvas-container").innerHTML = ""
-                display(preview_img, target="canvas-container")
-
-                t_tiles = get_text("stat_tiles")
-                t_layout = get_text("stat_layout")
-                t_sheets = get_text("stat_sheets")
-
-                stats_html = f"""<div class="stats-box">
-                    <b>{t_tiles}:</b> {t_x} x {t_y}<br>
-                    <b>{t_layout}:</b> {m_x} x {m_y}<br>
-                    <b>{t_sheets}:</b> {m_x * m_y}
-                </div><br>"""
-                
-                for idx in sorted(color_counts.keys()):
-                    c = color_counts[idx]
-                    r, g, b = 0,0,0
-                    if palette_flat: r, g, b = palette_flat[idx*3:idx*3+3]
-                    stats_html += f"""
-                    <div class="color-row">
-                        <span><span class="chip" style="background:rgb({r},{g},{b})"></span> <b>ID {idx}</b></span>
-                        <span>{c}</span>
-                    </div>"""
-                
-                document.getElementById("stats-output").innerHTML = stats_html
-                document.getElementById("loading-msg").style.display = "none"
-
-            except Exception as e:
-                console.log(str(e))
-                window.alert(f"Error: {e}")
-                document.getElementById("loading-msg").style.display = "none"
-
-        async def generate_pdf(color_mode=False):
-            if not global_data["processed"]:
-                window.alert(get_text("err_prev"))
-                return
-            
-            document.getElementById("loading-msg").innerText = get_text("gen_pdf")
-            document.getElementById("loading-msg").style.display = "block"
-            await asyncio.sleep(0.1)
-
-            try:
-                pdf = FPDF(orientation='P', unit='mm', format='A4')
-                pdf.set_font("Helvetica", size=10)
-                
-                map_data = global_data["number_map"]
-                mesh_size = global_data["mesh_tile_count"]
-                m_cols = global_data["meshes_x"]
-                m_rows = global_data["meshes_y"]
-                palette = global_data["palette"]
-                
-                lbl_sheet = get_text("pdf_sheet")
-                lbl_row = get_text("pdf_row")
-                lbl_col = get_text("pdf_col")
-
-                cell_size = 190 / mesh_size
-                if cell_size > 7: cell_size = 7 
-                
-                mesh_counter = 1
-                
-                for my in range(m_rows):
-                    for mx in range(m_cols):
-                        pdf.add_page()
-                        
-                        pdf.set_font("Helvetica", 'B', 12)
-                        pdf.set_text_color(0, 0, 0)
-                        pdf.cell(0, 10, f"{lbl_sheet} #{mesh_counter} ({lbl_row} {my+1}, {lbl_col} {mx+1})", ln=True, align='L')
-                        pdf.ln(5)
-                        
-                        start_x = mx * mesh_size
-                        start_y = my * mesh_size
-                        end_x = min(start_x + mesh_size, global_data["tiles_x"])
-                        end_y = min(start_y + mesh_size, global_data["tiles_y"])
-                        
-                        pdf.set_font("Helvetica", size=7)
-                        
-                        for y in range(start_y, end_y):
-                            for x in range(start_x, end_x):
-                                color_id = map_data[y][x]
-                                is_fill = False
-                                
-                                if color_mode and palette:
-                                    r = palette[color_id*3]
-                                    g = palette[color_id*3+1]
-                                    b = palette[color_id*3+2]
-                                    pdf.set_fill_color(r, g, b)
-                                    is_fill = True
-                                    
-                                    lum = (0.299*r + 0.587*g + 0.114*b)
-                                    if lum < 128:
-                                        pdf.set_text_color(255, 255, 255)
-                                    else:
-                                        pdf.set_text_color(0, 0, 0)
-                                else:
-                                    pdf.set_text_color(0, 0, 0)
-
-                                pdf.cell(cell_size, cell_size, str(color_id), border=1, align='C', fill=is_fill)
-                            
-                            pdf.ln()
-                        
-                        mesh_counter += 1
-
-                pdf.add_page()
-                pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Helvetica", 'B', 16)
-                pdf.cell(0, 10, get_text("pdf_assembly"), ln=True, align='C')
-                pdf.ln(5)
-                
-                map_cell_w = 190 / m_cols
-                if map_cell_w > 40: map_cell_w = 40
-                map_cell_h = map_cell_w 
-                
-                counter = 1
-                for r in range(m_rows):
-                    for c in range(m_cols):
-                        s_x = c * mesh_size
-                        s_y = r * mesh_size
-                        e_x = min(s_x + mesh_size, global_data["tiles_x"])
-                        e_y = min(s_y + mesh_size, global_data["tiles_y"])
-                        
-                        crop_img = global_data["img_obj"].crop((s_x, s_y, e_x, e_y))
-                        
-                        with io.BytesIO() as crop_buf:
-                            crop_img.save(crop_buf, format="PNG")
-                            crop_buf.seek(0)
-                            
-                            x_pos = pdf.get_x()
-                            y_pos = pdf.get_y()
-                            
-                            pdf.rect(x_pos, y_pos, map_cell_w, map_cell_h)
-                            pdf.image(crop_buf, x=x_pos+1, y=y_pos+1, w=map_cell_w-2, h=map_cell_h-7)
-                            
-                            pdf.set_xy(x_pos, y_pos + map_cell_h - 6)
-                            pdf.set_font("Helvetica", 'B', 8)
-                            pdf.cell(map_cell_w, 5, f"{lbl_sheet} {counter}", align='C', border=0)
-                            
-                            pdf.set_xy(x_pos + map_cell_w, y_pos)
-                            
-                        counter += 1
-                    pdf.ln(map_cell_h)
-
-                pdf_bytes = pdf.output(dest='S')
-                if isinstance(pdf_bytes, str):
-                    pdf_bytes = pdf_bytes.encode('latin-1')
-                
-                blob = Blob.new([Uint8Array.new(pdf_bytes)], {type: "application/pdf"})
-                url = URL.createObjectURL(blob)
-                
-                hidden_link = document.createElement("a")
-                hidden_link.href = url
-                fname = "Mosaic_Visual_Guide.pdf" if color_mode else "Mosaic_Blueprint_BW.pdf"
-                hidden_link.download = fname
-                
-                document.body.appendChild(hidden_link)
-                hidden_link.click()
-                document.body.removeChild(hidden_link)
-                
-                document.getElementById("loading-msg").style.display = "none"
-
-            except Exception as e:
-                console.log(str(e))
-                window.alert(f"PDF Error: {e}")
-                document.getElementById("loading-msg").style.display = "none"
-
-        async def download_bw(event):
-            await generate_pdf(color_mode=False)
-
-        async def download_color(event):
-            await generate_pdf(color_mode=True)
-
-        btn_lang = document.getElementById("lang-switch")
-        btn_prev = document.getElementById("preview-btn")
-        btn_bw = document.getElementById("pdf-bw-btn")
-        btn_col = document.getElementById("pdf-color-btn")
-        
-        proxy_lang = create_proxy(toggle_language)
-        proxy_prev = create_proxy(process_preview)
-        proxy_bw = create_proxy(download_bw)
-        proxy_col = create_proxy(download_color)
-        
-        btn_lang.addEventListener("click", proxy_lang)
-        btn_prev.addEventListener("click", proxy_prev)
-        btn_bw.addEventListener("click", proxy_bw)
-        btn_col.addEventListener("click", proxy_col)
-
-    </py-script>
+<script src="app.js"></script>
 </body>
 </html>
